@@ -148,11 +148,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br flex flex-col items-center p-6">
       <div className="text-center mb-8">
-        <h1 className="text-5xl font-extrabold bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 bg-clip-text text-transparent mb-2 drop-shadow-sm">
-          AI Trip Planner
-        </h1>
-        <div className="text-4xl mb-2">🗺️</div>
-        <p className="text-gray-600 text-lg font-medium">Plan your perfect journey with AI</p>
+        <img src="https://ik.imagekit.io/yme0wx3ee/Alto.%20(1)_RxZxFhFm7.png?updatedAt=1758194824112"/>
+         <br/>
+          <h1 className="text-black-800 text-5xl">Plan your perfect journey with AI</h1>
       </div>
 
       {/* Form Card */}
@@ -208,9 +206,9 @@ export default function Home() {
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold px-6 py-3 rounded-xl 
+            className="bg-gradient-to-r from-[#282828] to-[#282828] text-white px-6 py-3 rounded-xl 
              hover:from-orange-600 hover:to-orange-700 hover:scale-105 transform transition-all duration-200 
-             disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
+             disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none hover:shadow-xl"
           >
             {loading ? "Generating..." : "Generate Trip"}
           </button>
