@@ -1,21 +1,8 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 
-// Fix Leaflet default markers by importing CSS and setting up icons
-import "leaflet/dist/leaflet.css";
-
-// Fix for default markers
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Type definitions matching the backend response
+// ---------- Types ----------
 interface Activity {
   name: string;
   description: string;
@@ -24,21 +11,50 @@ interface Activity {
   estimated_cost?: number;
   duration_hours?: number;
   category?: string;
+  type?: string;
+  location?: { lat: number; lng: number };
+  cost?: number;
+  rating?: number;
+  best_time?: string;
+}
+
+interface Weather {
+  date: string;
+  condition: string;
+  max_temp_c: number;
+  min_temp_c: number;
+  chance_of_rain: number;
 }
 
 interface ItineraryDay {
   day: number;
   activities: Activity[];
   total_day_cost?: number;
+  weather?: Weather;
+  accommodation?: {
+    name: string;
+    type: string;
+    price: number;
+    rating: number;
+  };
+  total_cost?: number;
+  notes?: string;
+  travel_time?: number;
 }
 
 interface Itinerary {
   location: string;
+  destination?: string;
+  from_location?: string;
+  to_location?: string;
   duration: number;
   budget: number;
   theme: string;
   days: ItineraryDay[];
   total_estimated_cost?: number;
+  total_cost?: number;
+  weather_summary?: any;
+  transportation_info?: any;
 }
 
 type MapProps = {
@@ -47,20 +63,7 @@ type MapProps = {
   showAllDays?: boolean;
 };
 
-// Component to handle map center updates
-function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
-      map.setView(center, zoom);
-    }
-  }, [map, center, zoom]);
-
-  return null;
-}
-
-// Default coordinates for fallback
+// ---------- Default coordinates with expanded list ----------
 const DEFAULT_COORDINATES: Record<string, [number, number]> = {
   jaipur: [26.9124, 75.7873],
   bangalore: [12.9716, 77.5946],
@@ -85,57 +88,47 @@ const DEFAULT_COORDINATES: Record<string, [number, number]> = {
   varanasi: [25.3176, 82.9739],
   amritsar: [31.6340, 74.8723],
   cochin: [9.9312, 76.2673],
+  kochi: [9.9312, 76.2673],
   mysore: [12.2958, 76.6394],
-  ooty: [11.4064, 76.6932]
+  ooty: [11.4064, 76.6932],
+  manali: [32.2432, 77.1892],
+  shimla: [31.1048, 77.1734],
+  darjeeling: [27.0360, 88.2627],
+  rishikesh: [30.0869, 78.2676],
+  haridwar: [29.9457, 78.1642],
+  pushkar: [26.4899, 74.5513],
+  mount_abu: [24.5925, 72.7156],
+  kasol: [32.0115, 77.3109],
+  mcleodganj: [32.2190, 76.3234],
+  leh: [34.1526, 77.5771],
+  srinagar: [34.0837, 74.7973],
+  hampi: [15.3350, 76.4600],
+  coorg: [12.3375, 75.8069],
+  munnar: [10.0889, 77.0595],
+  alleppey: [9.4981, 76.3388],
+  thekkady: [9.5916, 77.1594]
 };
 
-const createNumberedIcon = (number: number, category?: string, isActive: boolean = true) => {
-  const getIconColor = (category?: string) => {
-    switch (category?.toLowerCase()) {
-      case "sightseeing": return "#4f46e5"; // indigo
-      case "food": return "#f97316"; // orange
-      case "adventure": return "#059669"; // emerald
-      case "cultural": return "#7c3aed"; // violet
-      case "shopping": return "#ec4899"; // pink
-      case "nature": return "#16a34a"; // green
-      case "nightlife": return "#f59e0b"; // amber
-      case "heritage": return "#9333ea"; // purple
-      default: return "#6b7280"; // gray
-    }
-  };
-
-  const color = getIconColor(category);
-  const opacity = isActive ? 1 : 0.6;
-  const size = isActive ? 32 : 24;
-  const fontSize = isActive ? '11px' : '9px';
-
-  return new L.DivIcon({
-    html: `<div style="
-      background: linear-gradient(135deg, ${color} 0%, ${color}dd 100%);
-      color: white;
-      border-radius: 50%;
-      width: ${size}px;
-      height: ${size}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: ${fontSize};
-      font-family: system-ui, -apple-system, sans-serif;
-      border: 2px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.1);
-      opacity: ${opacity};
-      transition: all 0.2s ease;
-      cursor: pointer;
-    ">${number}</div>`,
-    className: "custom-marker-icon",
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
+// ---------- Category Colors and Emojis ----------
+const getIconColor = (category?: string, type?: string) => {
+  const cat = (category || type || '').toLowerCase();
+  switch (cat) {
+    case "sightseeing": return "#4f46e5"; // Indigo
+    case "food": return "#f97316"; // Orange
+    case "adventure": return "#059669"; // Emerald
+    case "cultural": return "#7c3aed"; // Violet
+    case "shopping": return "#ec4899"; // Pink
+    case "nature": return "#16a34a"; // Green
+    case "nightlife": return "#f59e0b"; // Amber
+    case "heritage": return "#9333ea"; // Purple
+    case "relaxation": return "#06b6d4"; // Cyan
+    default: return "#6b7280"; // Grey
+  }
 };
 
-const getCategoryEmoji = (category?: string) => {
-  switch (category?.toLowerCase()) {
+const getCategoryEmoji = (category?: string, type?: string) => {
+  const cat = (category || type || '').toLowerCase();
+  switch (cat) {
     case "sightseeing": return "🏛️";
     case "food": return "🍽️";
     case "adventure": return "🏔️";
@@ -144,6 +137,7 @@ const getCategoryEmoji = (category?: string) => {
     case "nature": return "🌿";
     case "nightlife": return "🌙";
     case "heritage": return "🏰";
+    case "relaxation": return "🧘";
     default: return "📍";
   }
 };
@@ -153,43 +147,95 @@ const formatCurrency = (amount?: number) => {
   return `₹${amount.toLocaleString()}`;
 };
 
+// ---------- Map Styles ----------
+const mapStyles: google.maps.MapTypeStyle[] = [
+  { elementType: "geometry", stylers: [{ color: "#f8fafc" }] }, // Very light grey background
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] }, // Slate grey labels
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#e2e8f0" }], // Light grey roads
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#cbd5e1" }], // Slightly darker for highways
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#bfdbfe" }], // Light blue water
+  },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ color: "#f1f5f9" }], // Very light grey for POI
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#e2e8f0" }],
+  },
+  {
+    featureType: "administrative",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#cbd5e1" }],
+  }
+];
+
 export default function MapView({ itinerary, activeDay, showAllDays = false }: MapProps) {
-  // Filter activities based on activeDay or show all
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<google.maps.Map>();
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow>();
+
+  // Get destination from multiple possible fields
+  const destination = itinerary.destination || itinerary.to_location || itinerary.location || "Unknown";
+
+  // ---------- Filter activities with better coordinate handling ----------
   const activitiesWithCoordinates = useMemo(() => {
-    const daysToShow = showAllDays 
-      ? itinerary.days 
-      : itinerary.days.filter(day => !activeDay || day.day === activeDay);
+    const daysToShow = showAllDays
+      ? itinerary.days
+      : itinerary.days.filter((day) => !activeDay || day.day === activeDay);
 
     let activityIndex = 0;
-    return daysToShow
-      .flatMap((day) => 
-        day.activities
-          .filter(activity => 
-            activity.latitude && 
-            activity.longitude && 
-            !isNaN(activity.latitude) && 
-            !isNaN(activity.longitude) &&
-            activity.latitude >= -90 && 
-            activity.latitude <= 90 &&
-            activity.longitude >= -180 && 
-            activity.longitude <= 180
-          )
-          .map(activity => ({
-            ...activity,
-            day: day.day,
-            isActiveDay: !activeDay || day.day === activeDay,
-            globalIndex: ++activityIndex
-          }))
-      );
+    return daysToShow.flatMap((day) =>
+      day.activities
+        .filter((activity) => {
+          // Handle both formats: activity.latitude/longitude and activity.location.lat/lng
+          const lat = activity.latitude || activity.location?.lat;
+          const lng = activity.longitude || activity.location?.lng;
+          
+          return lat !== undefined && 
+                 lng !== undefined && 
+                 !isNaN(lat) && 
+                 !isNaN(lng) &&
+                 lat >= -90 && lat <= 90 &&
+                 lng >= -180 && lng <= 180;
+        })
+        .map((activity) => ({
+          ...activity,
+          // Normalize coordinates
+          latitude: activity.latitude || activity.location?.lat!,
+          longitude: activity.longitude || activity.location?.lng!,
+          // Normalize cost
+          estimated_cost: activity.estimated_cost || activity.cost || 0,
+          day: day.day,
+          isActiveDay: !activeDay || day.day === activeDay,
+          globalIndex: ++activityIndex,
+        }))
+    );
   }, [itinerary.days, activeDay, showAllDays]);
 
-  // Calculate map center and bounds
+  // ---------- Map center logic ----------
   const { mapCenter, mapZoom } = useMemo(() => {
     if (activitiesWithCoordinates.length === 0) {
-      // Fallback to location-based default coordinates
-      const locationKey = itinerary.location.toLowerCase().trim();
+      // Enhanced fallback logic
+      const locationKey = destination.toLowerCase().trim();
       
-      // Try to find exact match first
+      // Try exact match first
       let defaultCoord = DEFAULT_COORDINATES[locationKey];
       
       // If not found, try partial matches
@@ -200,25 +246,28 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
         defaultCoord = matchingKey ? DEFAULT_COORDINATES[matchingKey] : DEFAULT_COORDINATES.jaipur;
       }
       
-      return { mapCenter: defaultCoord, mapZoom: 11 };
+      return { 
+        mapCenter: { lat: defaultCoord[0], lng: defaultCoord[1] }, 
+        mapZoom: 11 
+      };
     }
 
     if (activitiesWithCoordinates.length === 1) {
-      const activity = activitiesWithCoordinates[0];
+      const a = activitiesWithCoordinates[0];
       return { 
-        mapCenter: [activity.latitude!, activity.longitude!] as [number, number], 
+        mapCenter: { lat: a.latitude!, lng: a.longitude! }, 
         mapZoom: 14 
       };
     }
 
     // Calculate bounds for multiple activities
-    const lats = activitiesWithCoordinates.map(a => a.latitude!);
-    const lngs = activitiesWithCoordinates.map(a => a.longitude!);
+    const lats = activitiesWithCoordinates.map((a) => a.latitude!);
+    const lngs = activitiesWithCoordinates.map((a) => a.longitude!);
     
     const centerLat = (Math.max(...lats) + Math.min(...lats)) / 2;
     const centerLng = (Math.max(...lngs) + Math.min(...lngs)) / 2;
     
-    // Calculate zoom based on bounds
+    // Calculate appropriate zoom level
     const latDiff = Math.max(...lats) - Math.min(...lats);
     const lngDiff = Math.max(...lngs) - Math.min(...lngs);
     const maxDiff = Math.max(latDiff, lngDiff);
@@ -231,21 +280,150 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
     else if (maxDiff < 1) zoom = 9;
     else zoom = 8;
 
-    return { mapCenter: [centerLat, centerLng] as [number, number], mapZoom: zoom };
-  }, [activitiesWithCoordinates, itinerary.location]);
+    return { 
+      mapCenter: { lat: centerLat, lng: centerLng }, 
+      mapZoom: zoom 
+    };
+  }, [activitiesWithCoordinates, destination]);
+
+  // ---------- Initialize Google Map ----------
+  useEffect(() => {
+    if (!mapRef.current || !window.google) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Create map
+    mapInstance.current = new google.maps.Map(mapRef.current, {
+      center: mapCenter,
+      zoom: mapZoom,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+      styles: mapStyles,
+    });
+
+    // Create single info window
+    infoWindowRef.current = new google.maps.InfoWindow();
+
+    // ---------- Add markers ----------
+    activitiesWithCoordinates.forEach((activity) => {
+      const marker = new google.maps.Marker({
+        position: { lat: activity.latitude!, lng: activity.longitude! },
+        map: mapInstance.current,
+        title: activity.name,
+        label: {
+          text: activity.globalIndex.toString(),
+          color: "#ffffff",
+          fontSize: "11px",
+          fontWeight: "bold",
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: activity.isActiveDay ? 16 : 12,
+          fillColor: getIconColor(activity.category, activity.type),
+          fillOpacity: activity.isActiveDay ? 1 : 0.7,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
+      });
+
+      // Enhanced info window content
+      const infoContent = `
+        <div style="max-width: 280px; font-family: system-ui, -apple-system, sans-serif; line-height: 1.4;">
+          <!-- Header -->
+          <div style="display: flex; align-items: start; gap: 8px; margin-bottom: 8px;">
+            <div style="font-size: 18px;">${getCategoryEmoji(activity.category, activity.type)}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: bold; color: #1f2937; font-size: 14px; margin-bottom: 4px;">
+                ${activity.name}
+              </div>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
+                <span style="background: #4f46e5; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500;">
+                  Day ${activity.day}
+                </span>
+                <span style="background: #e5e7eb; color: #374151; padding: 2px 8px; border-radius: 12px; font-size: 10px;">
+                  Stop #${activity.globalIndex}
+                </span>
+                ${activity.category ? `
+                <span style="background: #7c3aed; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; text-transform: capitalize;">
+                  ${activity.category}
+                </span>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Description -->
+          <p style="color: #6b7280; font-size: 12px; margin: 8px 0; line-height: 1.3;">
+            ${activity.description}
+          </p>
+          
+          <!-- Details -->
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0;">
+            ${activity.estimated_cost !== undefined && activity.estimated_cost > 0 ? `
+            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+              💰 ${formatCurrency(activity.estimated_cost)}
+            </span>
+            ` : ''}
+            ${activity.duration_hours ? `
+            <span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+              ⏰ ${activity.duration_hours}h
+            </span>
+            ` : ''}
+            ${activity.rating ? `
+            <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+              ⭐ ${activity.rating}/5
+            </span>
+            ` : ''}
+            ${activity.best_time ? `
+            <span style="background: #f3e8ff; color: #6b21a8; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+              🕐 ${activity.best_time}
+            </span>
+            ` : ''}
+          </div>
+
+          <!-- Coordinates -->
+          <div style="color: #9ca3af; font-size: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; display: flex; align-items: center; gap: 4px;">
+            <span>📍</span>
+            <span>${activity.latitude!.toFixed(4)}, ${activity.longitude!.toFixed(4)}</span>
+          </div>
+        </div>
+      `;
+
+      marker.addListener("click", () => {
+        infoWindowRef.current?.setContent(infoContent);
+        infoWindowRef.current?.open(mapInstance.current, marker);
+      });
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit bounds if multiple markers
+    if (activitiesWithCoordinates.length > 1) {
+      const bounds = new google.maps.LatLngBounds();
+      activitiesWithCoordinates.forEach((activity) => {
+        bounds.extend({ lat: activity.latitude!, lng: activity.longitude! });
+      });
+      mapInstance.current.fitBounds(bounds, { padding: 50 });
+    }
+
+  }, [mapCenter, mapZoom, activitiesWithCoordinates]);
 
   const currentDay = activeDay || 1;
   const activeActivitiesCount = activitiesWithCoordinates.filter(a => a.isActiveDay).length;
 
   return (
     <div className="relative h-[500px] w-full rounded-lg overflow-hidden bg-gray-100">
-      {/* Grey overlay for styling */}
+      {/* Grey overlay for consistent styling */}
       <div className="absolute inset-0 bg-gray-500/10 z-[1] pointer-events-none rounded-lg"></div>
       
       {/* Map Header */}
       <div className="absolute top-4 left-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-xl border border-gray-700">
         <div className="text-sm font-semibold text-white flex items-center gap-2">
-          📍 {itinerary.location}
+          📍 {destination}
         </div>
         <div className="text-xs text-gray-300">
           {showAllDays 
@@ -253,6 +431,11 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
             : `Day ${currentDay} • ${activeActivitiesCount} locations`
           }
         </div>
+        {/* {itinerary.from_location && (
+          <div className="text-xs text-gray-400 mt-1">
+            From: {itinerary.from_location}
+          </div>
+        )} */}
       </div>
 
       {/* Category Legend */}
@@ -260,26 +443,17 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
         <div className="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-xl border border-gray-700 max-w-48">
           <div className="text-xs font-semibold text-white mb-2">🎯 Categories</div>
           <div className="grid grid-cols-1 gap-1 text-xs">
-            {Array.from(new Set(activitiesWithCoordinates.map(a => a.category).filter(Boolean)))
-              .slice(0, 6)
-              .map(category => (
-                <div key={category} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full border border-white/30" 
-                    style={{ 
-                      backgroundColor: category === 'sightseeing' ? '#4f46e5' :
-                                     category === 'food' ? '#f97316' :
-                                     category === 'adventure' ? '#059669' :
-                                     category === 'cultural' ? '#7c3aed' :
-                                     category === 'shopping' ? '#ec4899' :
-                                     category === 'nature' ? '#16a34a' :
-                                     category === 'nightlife' ? '#f59e0b' :
-                                     category === 'heritage' ? '#9333ea' : '#6b7280'
-                    }}
-                  />
-                  <span className="capitalize text-gray-300">{category}</span>
-                </div>
-              ))}
+            {Array.from(new Set(
+              activitiesWithCoordinates.map(a => a.category || a.type).filter(Boolean)
+            )).slice(0, 6).map(category => (
+              <div key={category} className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full border border-white/30" 
+                  style={{ backgroundColor: getIconColor(category) }}
+                />
+                <span className="capitalize text-gray-300">{category}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -294,7 +468,7 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
             </h3>
             <p className="text-gray-300 text-sm leading-relaxed mb-4">
               The activities for {showAllDays ? 'this itinerary' : `Day ${currentDay}`} don't have 
-              location coordinates yet. The map shows the general area of <strong className="text-white">{itinerary.location}</strong>.
+              location coordinates yet. The map shows the general area of <strong className="text-white">{destination}</strong>.
             </p>
             <div className="text-xs text-gray-400 bg-gray-800/50 rounded-lg p-3 border border-gray-700">
               💡 Tip: The AI is still learning to provide coordinates. Future updates will include more precise locations!
@@ -303,103 +477,8 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
         </div>
       )}
 
-      <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
-        style={{ 
-          height: "100%", 
-          width: "100%",
-          filter: "grayscale(30%) contrast(1.1)",
-          backgroundColor: "#f3f4f6"
-        }}
-        className="z-0 rounded-lg"
-        zoomControl={true}
-        scrollWheelZoom={true}
-      >
-        {/* Custom grey-tinted tile layer */}
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; OpenStreetMap contributors"
-          className="leaflet-tile-pane"
-          opacity={0.8}
-        />
-        
-        {/* Alternative darker tile layer option */}
-        {/* <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-          attribution="&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors"
-        /> */}
-        
-        <MapController center={mapCenter} zoom={mapZoom} />
-
-        {activitiesWithCoordinates.map((activity, index) => (
-          <Marker
-            key={`${activity.day}-${index}-${activity.globalIndex}`}
-            position={[activity.latitude!, activity.longitude!]}
-            icon={createNumberedIcon(activity.globalIndex, activity.category, activity.isActiveDay)}
-          >
-            <Popup 
-              maxWidth={320} 
-              className="custom-popup"
-              closeButton={true}
-              autoClose={false}
-              keepInView={true}
-            >
-              <div className="p-3 bg-white rounded-lg">
-                {/* Header */}
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="text-2xl">{getCategoryEmoji(activity.category)}</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-gray-800 text-base leading-tight">
-                      {activity.name}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
-                      <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full font-medium">
-                        Day {activity.day}
-                      </span>
-                      <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
-                        Stop #{activity.globalIndex}
-                      </span>
-                      {activity.category && (
-                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full capitalize">
-                          {activity.category}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Description */}
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                  {activity.description}
-                </p>
-                
-                {/* Details */}
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    {activity.estimated_cost !== undefined && (
-                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                        💰 {formatCurrency(activity.estimated_cost)}
-                      </span>
-                    )}
-                    {activity.duration_hours && (
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                        ⏰ {activity.duration_hours}h
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Coordinates */}
-                <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-200 flex items-center gap-1">
-                  <span>📍</span>
-                  <span>{activity.latitude?.toFixed(4)}, {activity.longitude?.toFixed(4)}</span>
-                </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+      {/* Map Container */}
+      <div ref={mapRef} className="h-full w-full" />
 
       {/* Bottom Info Bar */}
       <div className="absolute bottom-4 left-4 right-4 z-[1000] flex justify-between items-center">
@@ -416,51 +495,16 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
         </div>
       </div>
 
-      {/* Custom CSS for map styling */}
-      <style jsx global>{`
-        .leaflet-container {
-          font-family: system-ui, -apple-system, sans-serif;
-        }
-        
-        .leaflet-popup-content-wrapper {
-          border-radius: 12px !important;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-        }
-        
-        .leaflet-popup-tip {
-          background: white !important;
-        }
-        
-        .leaflet-control-zoom {
-          border: none !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-        }
-        
-        .leaflet-control-zoom a {
-          background-color: rgba(31, 41, 55, 0.9) !important;
-          color: white !important;
-          border: 1px solid rgba(75, 85, 99, 0.5) !important;
-          backdrop-filter: blur(4px);
-        }
-        
-        .leaflet-control-zoom a:hover {
-          background-color: rgba(55, 65, 81, 0.9) !important;
-          color: white !important;
-        }
-        
-        .custom-marker-icon {
-          transition: transform 0.2s ease !important;
-        }
-        
-        .custom-marker-icon:hover {
-          transform: scale(1.1) !important;
-          z-index: 1000 !important;
-        }
-
-        .leaflet-tile-pane {
-          filter: grayscale(20%) brightness(0.95) contrast(1.1);
-        }
-      `}</style>
+      {/* Weather info for active day */}
+      {!showAllDays && activeDay && itinerary.days[activeDay - 1]?.weather && (
+        <div className="absolute top-20 left-4 z-[1000] bg-blue-800/90 backdrop-blur-sm rounded-lg p-2 shadow-xl border border-blue-700">
+          <div className="text-xs text-blue-200 flex items-center gap-2">
+            <span>🌤️</span>
+            <span>{itinerary.days[activeDay - 1].weather?.condition}</span>
+            <span>{Math.round(itinerary.days[activeDay - 1].weather?.min_temp_c || 0)}°-{Math.round(itinerary.days[activeDay - 1].weather?.max_temp_c || 0)}°C</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
