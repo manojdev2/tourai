@@ -15,6 +15,7 @@ interface Activity {
   estimated_cost?: number;
   duration_hours?: number;
   category?: string;
+  best_time?: string;
 }
 
 interface Weather {
@@ -27,6 +28,7 @@ interface Weather {
 
 interface ItineraryDay {
   day: number;
+  date?: string;
   activities: Activity[];
   total_day_cost?: number;
   weather?: Weather;
@@ -68,6 +70,7 @@ interface Itinerary {
   preferred_transport?: string;
   from_location?: string;
   to_location?: string;
+  user_comments?: string;
   days: ItineraryDay[];
   total_estimated_cost?: number;
   hotels?: Hotel[];
@@ -87,6 +90,7 @@ export default function Home() {
   const [theme, setTheme] = useState("cultural");
   const [travelerCount, setTravelerCount] = useState(1);
   const [preferredTransport, setPreferredTransport] = useState("driving");
+  const [userComments, setUserComments] = useState("");
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [view, setView] = useState<"list" | "map" | "hotels" | "route">("list");
   const [activeDay, setActiveDay] = useState(1);
@@ -138,7 +142,11 @@ export default function Home() {
         preferred_transport: preferredTransport,
         from_location: fromLocation,
         to_location: toLocation,
+        user_comments: userComments.trim() || undefined,
       };
+
+      console.log("Sending request with comments:", requestBody);
+
       const response = await fetch("http://localhost:8000/trip/generate-itinerary", {
         method: "POST",
         headers: { 
@@ -154,6 +162,7 @@ export default function Home() {
       }
 
       const data: Itinerary = await response.json();
+      console.log("Received itinerary:", data);
       setItinerary(data);
       
       // Set view to list by default, but if no hotels available, don't show hotels tab
@@ -164,6 +173,7 @@ export default function Home() {
       
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
+      console.error("API Error:", err);
     } finally {
       setLoading(false);
     }
@@ -262,6 +272,11 @@ export default function Home() {
                 {activity.category}
               </span>
             )}
+            {activity.best_time && (
+              <span className="text-blue-600">
+                🕒 {activity.best_time}
+              </span>
+            )}
             {activity.latitude && activity.longitude && (
               <span className="flex items-center gap-1">
                 📍 {activity.latitude.toFixed(4)}, {activity.longitude.toFixed(4)}
@@ -288,15 +303,6 @@ export default function Home() {
       </div>
       
       <p className="text-gray-600 text-sm mb-2">📍 {hotel.address}</p>
-      
-      {/* <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">
-          {getPriceLevelText(hotel.price_level)}
-        </span>
-        <span className="text-xs text-gray-400">
-          {hotel.latitude.toFixed(4)}, {hotel.longitude.toFixed(4)}
-        </span>
-      </div> */}
       
       {hotel.place_id && (
         <div className="mt-2">
@@ -352,27 +358,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {/* {route.steps && route.steps.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-gray-700 mb-3">Key Directions:</h4>
-            <div className="space-y-2">
-              {route.steps.slice(0, 5).map((step, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="bg-indigo-100 text-indigo-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm text-gray-700" dangerouslySetInnerHTML={{ __html: step.instruction }} />
-                    <div className="text-xs text-gray-500 mt-1">
-                      {step.distance} • {step.duration}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )} */}
       </div>
     );
   };
@@ -409,6 +394,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br flex flex-col items-center p-6 relative overflow-hidden">
+      <div className="absolute w-96 h-96 bg-orange-200 opacity-30 rounded-full top-[-80px] left-[-100px] blur-3xl animate-pulse" />
+      <div className="absolute w-60 h-60 bg-orange-100 opacity-20 rounded-full bottom-[-40px] right-[-80px] blur-2xl" />
+
       <div className="text-center mb-8">
         <img 
           src="https://ik.imagekit.io/yme0wx3ee/Alto.%20(1)_RxZxFhFm7.png?updatedAt=1758194824112"
@@ -541,7 +529,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Preferred Transport - Updated to match backend options */}
+            {/* Preferred Transport */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">Preferred Transport</label>
               <select
@@ -558,7 +546,7 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Theme - Updated to match backend categories */}
+            {/* Theme */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">Theme</label>
               <select
@@ -576,6 +564,25 @@ export default function Home() {
                 <option value="shopping">Shopping</option>
                 <option value="sightseeing">Sightseeing</option>
               </select>
+            </div>
+          </div>
+
+          {/* User Comments/Preferences - New Field */}
+          <div className="mt-6">
+            <label className="mb-2 text-sm font-bold text-gray-700 block">
+              Additional Preferences & Comments
+            </label>
+            <textarea
+              placeholder="Tell us more about your preferences... e.g., 'I love historical sites and local street food', 'Avoid crowded places', 'Include kid-friendly activities', 'I'm interested in photography spots', etc."
+              value={userComments}
+              onChange={(e) => setUserComments(e.target.value)}
+              className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition resize-none"
+              rows={3}
+              disabled={loading}
+              maxLength={500}
+            />
+            <div className="text-xs text-gray-500 mt-1 text-right">
+              {userComments.length}/500 characters
             </div>
           </div>
 
@@ -655,7 +662,7 @@ export default function Home() {
         <div className="text-center py-12">
           <div className="animate-spin text-4xl mb-4">⏳</div>
           <p className="text-lg text-gray-700">Generating your personalized itinerary...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+          <p className="text-sm text-gray-500 mt-2">Analyzing your preferences and comments...</p>
         </div>
       )}
 
@@ -709,6 +716,14 @@ export default function Home() {
                     </span>
                   )}
                 </div>
+                
+                {/* Show User Comments if provided */}
+                {itinerary.user_comments && (
+                  <div className="mt-4 bg-orange-500/20 rounded-lg p-3">
+                    <div className="text-sm font-medium mb-1">Your Preferences:</div>
+                    <div className="text-sm opacity-90 italic">"{itinerary.user_comments}"</div>
+                  </div>
+                )}
               </div>
 
               {/* Day Tabs */}
@@ -735,73 +750,72 @@ export default function Home() {
                 </div>
               </div>
 
-       {/* Day Content */}
-<div className="p-6">
-  {itinerary.days
-    .filter(day => day.day === activeDay)
-    .map((day) => (
-      <div key={day.day}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            📅 Day {day.day}
-            <span className="text-lg text-gray-500">
-              ({day.activities.length} activities)
-            </span>
-          </h3>
-          {day.total_day_cost && (
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Day Total</div>
-              <div className="text-xl font-bold text-orange-600">
-                {formatCurrency(day.total_day_cost)}
+              {/* Day Content */}
+              <div className="p-6">
+                {itinerary.days
+                  .filter(day => day.day === activeDay)
+                  .map((day) => (
+                    <div key={day.day}>
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                          📅 Day {day.day}
+                          <span className="text-lg text-gray-500">
+                            ({day.activities.length} activities)
+                          </span>
+                        </h3>
+                        {day.total_day_cost && (
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">Day Total</div>
+                            <div className="text-xl font-bold text-orange-600">
+                              {formatCurrency(day.total_day_cost)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Weather Card */}
+                      {day.weather && (
+                        <div className="mb-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">
+                              {day.weather.condition.includes("Rain")
+                                ? "🌧️"
+                                : day.weather.condition.includes("Cloud")
+                                ? "⛅"
+                                : "☀️"}
+                            </span>
+                            <div>
+                              <div className="text-sm text-gray-500">{day.weather.date}</div>
+                              <div className="font-semibold text-gray-700">
+                                {day.weather.condition}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {day.weather.min_temp_c}°C - {day.weather.max_temp_c}°C
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-sm text-blue-700 font-medium">
+                            🌧 Chance of Rain: {day.weather.chance_of_rain}%
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Activities */}
+                      <div className="space-y-4">
+                        {day.activities.map((activity, index) =>
+                          renderActivityCard(activity, index)
+                        )}
+                      </div>
+
+                      {day.activities.length === 0 && (
+                        <div className="text-center py-12 text-gray-500">
+                          <div className="text-4xl mb-2">📝</div>
+                          <p>No activities planned for this day</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* 🌤️ Weather Card */}
-        {day.weather && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">
-                {day.weather.condition.includes("Rain")
-                  ? "🌧️"
-                  : day.weather.condition.includes("Cloud")
-                  ? "⛅"
-                  : "☀️"}
-              </span>
-              <div>
-                <div className="text-sm text-gray-500">{day.weather.date}</div>
-                <div className="font-semibold text-gray-700">
-                  {day.weather.condition}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {day.weather.min_temp_c}°C - {day.weather.max_temp_c}°C
-                </div>
-              </div>
-            </div>
-            <div className="text-sm text-blue-700 font-medium">
-              🌧 Chance of Rain: {day.weather.chance_of_rain}%
-            </div>
-          </div>
-        )}
-
-        {/* Activities */}
-        <div className="space-y-4">
-          {day.activities.map((activity, index) =>
-            renderActivityCard(activity, index)
-          )}
-        </div>
-
-        {day.activities.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <div className="text-4xl mb-2">📝</div>
-            <p>No activities planned for this day</p>
-          </div>
-        )}
-      </div>
-    ))}
-</div>
-
 
               {/* Navigation */}
               <div className="border-t bg-gray-50 p-4 flex justify-between">
@@ -883,19 +897,6 @@ export default function Home() {
           )}
         </div>
       )}
-
-      {/* API Status Footer */}
-      {/* {!loading && !itinerary && !error && (
-        <div className="mt-12 text-center text-gray-500">
-          <p className="text-sm">Powered by AI and Google Maps API</p>
-          <div className="flex justify-center gap-4 mt-2 text-xs">
-            <span>✨ AI Trip Planning</span>
-            <span>🏨 Hotel Recommendations</span>
-            <span>🗺️ Route Planning</span>
-            <span>📍 Location Services</span>
-          </div>
-        </div>
-      )} */}
     </div>
   );
 }
