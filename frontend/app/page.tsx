@@ -516,7 +516,6 @@ export default function Home() {
         {/* Cost */}
         <div>
           <div className="font-bold text-base sm:text-lg text-orange-500 flex items-center justify-center gap-1">
-            <FontAwesomeIcon icon={faIndianRupeeSign} />
             {formatCurrency(activity.estimated_cost)}
           </div>
           <div className="text-xs text-gray-500">Cost</div>
