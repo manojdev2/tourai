@@ -267,7 +267,7 @@ const renderActivityCard = (activity: Activity, index: number) => (
     className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border shadow-md mb-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
   >
     {/* Left segment - grey background */}
-    <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:w-1/4">
+    <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:w-1/2">
       <div>
         {/* Number + Title */}
         <div className="flex items-center gap-2 mb-2">
