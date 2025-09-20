@@ -267,7 +267,7 @@ const renderActivityCard = (activity: Activity, index: number) => (
     className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border shadow-md mb-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
   >
     {/* Left segment - grey background */}
-    <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:w-1/2">
+    <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:max-w-md">
       <div>
         {/* Number + Title */}
         <div className="flex items-center gap-2 mb-2">
@@ -276,11 +276,14 @@ const renderActivityCard = (activity: Activity, index: number) => (
           </div>
           <h5 className="font-bold text-base sm:text-lg line-clamp-1">{activity.name}</h5>
         </div>
-
+        {activity.best_time && (
+          <span className="text-white-800 flex items-center gap-1">
+            <FontAwesomeIcon icon={faClock} />
+            {activity.best_time}
+          </span>
+        )}
         {/* Short description */}
-        <p className="text-gray-300 text-xs sm:text-sm leading-relaxed line-clamp-2">
-          {activity.description || "No description available."}
-        </p>
+       
       </div>
     </div>
 
@@ -322,12 +325,9 @@ const renderActivityCard = (activity: Activity, index: number) => (
 
       {/* Extra info row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-1 sm:gap-0">
-        {activity.best_time && (
-          <span className="text-gray-600 flex items-center gap-1">
-            <FontAwesomeIcon icon={faCalendarAlt} />
-            {activity.best_time}
-          </span>
-        )}
+      <p className="text-gray-900 text-xs sm:text-sm leading-relaxed line-clamp-2">
+          {activity.description || "No description available."}
+        </p>
 
         {activity.latitude && activity.longitude && (
           <span className="flex items-center gap-1 text-pink-600">
