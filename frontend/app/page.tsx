@@ -1002,15 +1002,21 @@ export default function Home() {
       )}
 
       {/* Loading State */}
-      {loading && !bookingConfirmed && (
-        <div className="text-center py-12">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-lg text-gray-700">{showPaymentModal ? "Processing payment..." : "Generating your personalized itinerary..."}</p>
-          <p className="text-sm text-gray-500 mt-2">
-            {showPaymentModal ? "Please wait while we confirm your booking" : "Analyzing your preferences and comments..."}
-          </p>
-        </div>
-      )}
+{loading && !bookingConfirmed && (
+    <div className="text-center p-6 bg-white shadow-lg rounded-2xl max-w-md">
+      <div className="animate-spin text-4xl mb-4">⏳</div>
+      <p className="text-lg font-semibold text-gray-800">
+        {showPaymentModal
+          ? "Processing payment..."
+          : "Generating your personalized itinerary..."}
+      </p>
+      <p className="text-sm text-gray-600 mt-2">
+        {showPaymentModal
+          ? "Please wait while we confirm your booking"
+          : "Analyzing your preferences and comments..."}
+      </p>
+    </div>
+)}
 
       {/* Error State */}
       {error && (
