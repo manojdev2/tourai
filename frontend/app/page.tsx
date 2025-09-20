@@ -6,6 +6,25 @@ import {
   useLoadScript, 
   Autocomplete 
 } from "@react-google-maps/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faIndianRupeeSign,
+  faClock,
+  faLandmark,
+  faCalendarAlt,
+  faMapMarkerAlt,
+} from "@fortawesome/free-solid-svg-icons";
+
+interface ActivityCardProps {
+  index: number;
+  name: string;
+  description: string;
+  estimated_cost?: number;
+  duration_hours?: number;
+  category?: string;
+  start_time?: string;
+  end_time?: string;
+}
 
 interface Activity {
   name: string;
@@ -147,7 +166,7 @@ export default function Home() {
 
       console.log("Sending request with comments:", requestBody);
 
-      const response = await fetch("http://localhost:8000/trip/generate-itinerary", {
+      const response = await fetch("https://tourai-i91r.onrender.com/trip/generate-itinerary", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -242,51 +261,86 @@ export default function Home() {
     }
   };
 
-  const renderActivityCard = (activity: Activity, index: number) => (
-    <div 
-      key={index}
-      className={`border-2 rounded-xl p-5 mb-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${getCategoryColor(activity.category)}`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="text-2xl">{getCategoryIcon(activity.category)}</div>
-        <div className="flex-1">
-          <div className="flex items-start justify-between mb-2">
-            <h4 className="font-bold text-lg text-gray-800">{activity.name}</h4>
-            <div className="text-right">
-              <div className="text-sm font-semibold text-green-600">
-                {formatCurrency(activity.estimated_cost)}
-              </div>
-              {activity.duration_hours && (
-                <div className="text-xs text-gray-500">
-                  {activity.duration_hours}h
-                </div>
-              )}
-            </div>
+const renderActivityCard = (activity: Activity, index: number) => (
+  <div
+    key={index}
+    className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border shadow-md mb-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+  >
+    {/* Left segment - grey background */}
+    <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:w-1/4">
+      <div>
+        {/* Number + Title */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="inline-flex w-8 h-8 items-center justify-center bg-white text-black font-bold rounded-md text-sm sm:text-base">
+            {index + 1}
           </div>
-          <p className="text-gray-600 text-sm leading-relaxed mb-2">
-            {activity.description}
-          </p>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            {activity.category && (
-              <span className="capitalize bg-white px-2 py-1 rounded-full">
-                {activity.category}
-              </span>
-            )}
-            {activity.best_time && (
-              <span className="text-blue-600">
-                🕒 {activity.best_time}
-              </span>
-            )}
-            {activity.latitude && activity.longitude && (
-              <span className="flex items-center gap-1">
-                📍 {activity.latitude.toFixed(4)}, {activity.longitude.toFixed(4)}
-              </span>
-            )}
-          </div>
+          <h5 className="font-bold text-base sm:text-lg line-clamp-1">{activity.name}</h5>
         </div>
+
+        {/* Short description */}
+        <p className="text-gray-300 text-xs sm:text-sm leading-relaxed line-clamp-2">
+          {activity.description || "No description available."}
+        </p>
       </div>
     </div>
-  );
+
+    {/* Right segment - white background */}
+    <div className="bg-white flex-1 p-4 sm:p-5 flex flex-col justify-between">
+      {/* Top info row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 text-center mb-3 sm:mb-4">
+        {/* Cost */}
+        <div>
+          <div className="font-bold text-base sm:text-lg text-orange-500 flex items-center justify-center gap-1">
+            <FontAwesomeIcon icon={faIndianRupeeSign} />
+            {formatCurrency(activity.estimated_cost)}
+          </div>
+          <div className="text-xs text-gray-500">Cost</div>
+        </div>
+
+        {/* Duration */}
+        {activity.duration_hours && (
+          <div>
+            <div className="font-bold text-base sm:text-lg text-gray-800 flex items-center justify-center gap-1">
+              <FontAwesomeIcon icon={faClock} />
+              {activity.duration_hours}h
+            </div>
+            <div className="text-xs text-gray-500">Duration</div>
+          </div>
+        )}
+
+        {/* Category */}
+        {activity.category && (
+          <div>
+            <div className="font-bold text-base sm:text-lg capitalize text-gray-800 flex items-center justify-center gap-1">
+              <FontAwesomeIcon icon={faLandmark} />
+              {activity.category}
+            </div>
+            <div className="text-xs text-gray-500">Category</div>
+          </div>
+        )}
+      </div>
+
+      {/* Extra info row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-1 sm:gap-0">
+        {activity.best_time && (
+          <span className="text-gray-600 flex items-center gap-1">
+            <FontAwesomeIcon icon={faCalendarAlt} />
+            {activity.best_time}
+          </span>
+        )}
+
+        {activity.latitude && activity.longitude && (
+          <span className="flex items-center gap-1 text-pink-600">
+            <FontAwesomeIcon icon={faMapMarkerAlt} />
+          </span>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+
+
 
   const renderHotelCard = (hotel: Hotel, index: number) => (
     <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm hover:shadow-md transition-all">

@@ -187,9 +187,9 @@ const mapStyles: google.maps.MapTypeStyle[] = [
 
 export default function MapView({ itinerary, activeDay, showAllDays = false }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<google.maps.Map>();
+  const mapInstance = useRef<google.maps.Map>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const infoWindowRef = useRef<google.maps.InfoWindow>();
+  const infoWindowRef = useRef<google.maps.InfoWindow>(null);
 
   // Get destination from multiple possible fields
   const destination = itinerary.destination || itinerary.to_location || itinerary.location || "Unknown";
@@ -407,7 +407,7 @@ export default function MapView({ itinerary, activeDay, showAllDays = false }: M
       activitiesWithCoordinates.forEach((activity) => {
         bounds.extend({ lat: activity.latitude!, lng: activity.longitude! });
       });
-      mapInstance.current.fitBounds(bounds, { padding: 50 });
+      mapInstance.current.fitBounds(bounds, 50);
     }
 
   }, [mapCenter, mapZoom, activitiesWithCoordinates]);
