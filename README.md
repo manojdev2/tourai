@@ -1,4 +1,4 @@
-# AI Trip Planner (FastAPI + Next.js)
+# Zeezo - AI Trip Planner (FastAPI + Next.js)
 
 ## Structure
 - backend/ → FastAPI server with Google Generative AI
