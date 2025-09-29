@@ -128,8 +128,11 @@ export default function Home() {
   const [toLocation, setToLocation] = useState("");
   const [duration, setDuration] = useState(3);
   const [budget, setBudget] = useState(10000);
-  const [theme, setTheme] = useState("cultural");
   const [travelerCount, setTravelerCount] = useState(1);
+  const [durationInput, setDurationInput] = useState(duration.toString());
+  const [budgetInput, setBudgetInput] = useState(budget.toString());
+  const [travelerInput, setTravelerInput] = useState(travelerCount.toString())
+  const [theme, setTheme] = useState("cultural");
   const [preferredTransport, setPreferredTransport] = useState("driving");
   const [userComments, setUserComments] = useState("");
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
@@ -138,6 +141,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
+  
 
   // Booking and sharing states
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -213,7 +217,7 @@ export default function Home() {
         user_comments: userComments.trim() || undefined,
       };
 
-      const response = await fetch("https://tourai-i91r.onrender.com/trip/generate-itinerary", {
+      const response = await fetch("https://tourbk.onrender.com/trip/generate-itinerary", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -526,7 +530,7 @@ export default function Home() {
           <div>
             <div className="font-bold text-base sm:text-lg text-gray-800 flex items-center justify-center gap-1">
               <FontAwesomeIcon icon={faClock} />
-              {activity.duration_hours}h
+              {Math.round(activity.duration_hours)}h
             </div>
             <div className="text-xs text-gray-500">Duration</div>
           </div>
@@ -825,15 +829,24 @@ export default function Home() {
               />
             </div>
 
-            {/* Duration */}
+           {/* Duration */}
             <div className="flex flex-col w-full">
-              <label className="mb-2 text-sm font-bold text-gray-700">Duration (days)</label>
+              <label className="mb-2 text-sm font-bold text-gray-700">
+                Duration (days)
+              </label>
               <input
                 type="number"
                 min="1"
                 max="14"
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
+                value={durationInput}
+                onChange={(e) => setDurationInput(e.target.value)}
+                // onBlur={() => {
+                //   let val = Number(durationInput);
+                //   if (!val || val < 1) val = 1;
+                //   else if (val > 14) val = 14;
+                //   setDuration(val);
+                //   setDurationInput(val.toString());
+                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
@@ -841,13 +854,20 @@ export default function Home() {
 
             {/* Budget */}
             <div className="flex flex-col w-full">
-              <label className="mb-2 text-sm font-bold text-gray-700">Budget (INR)</label>
+              <label className="mb-2 text-sm font-bold text-gray-700">
+                Budget (INR)
+              </label>
               <input
                 type="number"
                 min="1000"
-                step="1000"
-                value={budget}
-                onChange={(e) => setBudget(Math.max(1000, Number(e.target.value)))}
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                // onBlur={() => {
+                //   let val = Number(budgetInput);
+                //   if (!val || val < 1000) val = 1000;
+                //   setBudget(val);
+                //   setBudgetInput(val.toString());
+                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
@@ -855,13 +875,22 @@ export default function Home() {
 
             {/* Number of Travelers */}
             <div className="flex flex-col w-full">
-              <label className="mb-2 text-sm font-bold text-gray-700">Number of Travelers</label>
+              <label className="mb-2 text-sm font-bold text-gray-700">
+                Number of Travelers
+              </label>
               <input
                 type="number"
                 min="1"
                 max="20"
-                value={travelerCount}
-                onChange={(e) => setTravelerCount(Math.max(1, Number(e.target.value)))}
+                value={travelerInput}
+                onChange={(e) => setTravelerInput(e.target.value)}
+                // onBlur={() => {
+                //   let val = Number(travelerInput);
+                //   if (!val || val < 1) val = 1;
+                //   else if (val > 20) val = 20;
+                //   setTravelerCount(val);
+                //   setTravelerInput(val.toString());
+                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
