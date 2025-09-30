@@ -564,7 +564,8 @@ export default function Landing() {
 
           <div className="border-t border-gray-800 pt-8 text-center text-gray-400 text-sm">
             <p>
-              © 2025 Zeezo.ai. All rights reserved. Built with AI for travelers.
+              © 2025 Zeezo.ai By Krossark, All rights reserved, Built with AI
+              for travelers.
             </p>
           </div>
         </div>
