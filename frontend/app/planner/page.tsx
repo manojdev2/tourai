@@ -272,11 +272,11 @@ export default function Home() {
     try {
       const requestBody = {
         location: toLocation,
-        duration,
-        budget,
+        duration: durationInput,
+        budget: budgetInput,
         themes,
         start_date: startDate,
-        traveler_count: travelerCount,
+        traveler_count: travelerInput,
         preferred_transport: preferredTransport,
         from_location: fromLocation,
         to_location: toLocation,
@@ -284,7 +284,7 @@ export default function Home() {
       };
 
       const response = await fetch(
-        "http://localhost:8000/trip/generate-itinerary",
+        "https://tourbk.onrender.com/trip/generate-itinerary",
         {
           method: "POST",
           headers: {
