@@ -63,8 +63,9 @@ export default function Landing() {
               <img
                 src="https://ik.imagekit.io/yme0wx3ee/zeezo_eKJRqrJOD.png?updatedAt=1761204034098"
                 alt="Zeezo.ai Logo"
-                className="h-10"
+                className="h-6 w-auto" // reduced from h-10
               />
+
               {/* <span className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">
                 zeezo.ai
               </span> */}
