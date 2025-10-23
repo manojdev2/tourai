@@ -287,7 +287,8 @@ export default function Home() {
       };
 
       const response = await fetch(
-        "http://localhost:8000/trip/generate-itinerary",
+        "https://tourbk.onrender.com/trip/generate-itinerary",
+        // "http://localhost:8000/trip/generate-itinerary",
         {
           method: "POST",
           headers: {
@@ -907,7 +908,7 @@ export default function Home() {
 
       <div className="text-center mb-8">
         <img
-          src="https://ik.imagekit.io/yme0wx3ee/Alto.%20(1)_RxZxFhFm7.png?updatedAt=1758194824112"
+          src="https://ik.imagekit.io/yme0wx3ee/zeezo_eKJRqrJOD.png?updatedAt=1761204034098"
           alt="Travel Planner Logo"
           className="mx-auto mb-4"
         />

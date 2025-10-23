@@ -61,7 +61,7 @@ export default function Landing() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src="https://ik.imagekit.io/yme0wx3ee/Alto.%20(1)_RxZxFhFm7.png?updatedAt=1758194824112"
+                src="https://ik.imagekit.io/yme0wx3ee/zeezo_eKJRqrJOD.png?updatedAt=1761204034098"
                 alt="Zeezo.ai Logo"
                 className="h-10"
               />
