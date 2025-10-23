@@ -9,6 +9,7 @@ import {
   faLandmark,
   faMapMarkerAlt,
 } from "@fortawesome/free-solid-svg-icons";
+
 interface Activity {
   name: string;
   description: string;
@@ -76,12 +77,18 @@ interface CostBreakdown {
   total: number;
 }
 
+interface BudgetWarning {
+  level: "info" | "warning" | "critical" | "error";
+  message: string;
+  suggestions: string[];
+}
+
 interface Itinerary {
   id?: string;
   location: string;
   duration: number;
   budget: number;
-  theme: string;
+  themes: string[];
   start_date?: string;
   traveler_count?: number;
   preferred_transport?: string;
@@ -93,6 +100,7 @@ interface Itinerary {
   hotels?: Hotel[];
   route_details?: RouteDetails;
   cost_breakdown?: CostBreakdown;
+  budget_warning?: BudgetWarning;
   shareable_link?: string;
   created_at?: string;
 }
@@ -124,8 +132,7 @@ export default function Home() {
   const [location, setLocation] = useState("");
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
-  // const [theme, setTheme] = useState("cultural");
-  const [themes, setThemes] = useState<string[]>(["cultural"]); // Changed from theme to themes array
+  const [themes, setThemes] = useState<string[]>(["cultural"]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [duration, setDuration] = useState(3);
@@ -201,24 +208,20 @@ export default function Home() {
     };
   }, []);
 
-  // Handler for theme selection/deselection
   const handleThemeToggle = (themeValue: string) => {
     setThemes((prev) => {
       if (prev.includes(themeValue)) {
-        // Remove theme if already selected
         return prev.filter((t) => t !== themeValue);
       } else {
-        // Add theme if not selected
         return [...prev, themeValue];
       }
     });
   };
 
-  // Remove individual theme
   const removeTheme = (themeValue: string) => {
     setThemes((prev) => prev.filter((t) => t !== themeValue));
   };
-  // Google Autocomplete Handlers
+
   const handleFromPlaceChanged = () => {
     const place = fromAutoRef.current?.getPlace();
     if (place && place.formatted_address) {
@@ -284,7 +287,7 @@ export default function Home() {
       };
 
       const response = await fetch(
-        "https://tourbk.onrender.com/trip/generate-itinerary",
+        "http://localhost:8000/trip/generate-itinerary",
         {
           method: "POST",
           headers: {
@@ -305,7 +308,6 @@ export default function Home() {
 
       const data: Itinerary = await response.json();
 
-      // Generate a shareable link
       const shareableId = `trip_${Date.now()}`;
       data.shareable_link = `${window.location.origin}/shared/${shareableId}`;
       data.created_at = new Date().toISOString();
@@ -327,7 +329,6 @@ export default function Home() {
   const generateBookingItems = (itinerary: Itinerary) => {
     const items: BookingItem[] = [];
 
-    // Add activities
     itinerary.days.forEach((day) => {
       day.activities.forEach((activity) => {
         if (activity.estimated_cost && activity.estimated_cost > 0) {
@@ -343,20 +344,6 @@ export default function Home() {
       });
     });
 
-    // Add only the first hotel
-    // if (itinerary.hotels && itinerary.hotels.length > 0) {
-    //   const hotel = itinerary.hotels[0]; // Select only the first hotel
-    //   const cost = hotel.price_per_night ? hotel.price_per_night * itinerary.duration : 100 * itinerary.duration;
-    //   items.push({
-    //     type: "hotel",
-    //     name: `${hotel.name} (booking for ${itinerary.duration})`,
-    //     cost: cost,
-    //     selected: true,
-    //     bookable: hotel.bookable !== false,
-    //   });
-    // }
-
-    // Add transportation
     if (itinerary.route_details?.estimated_cost) {
       items.push({
         type: "transport",
@@ -385,11 +372,8 @@ export default function Home() {
   };
 
   const handlePayment = async () => {
-    // Simulate payment processing
     setLoading(true);
-
     await new Promise((resolve) => setTimeout(resolve, 2000));
-
     setBookingConfirmed(true);
     setShowPaymentModal(false);
     setLoading(false);
@@ -481,7 +465,6 @@ export default function Home() {
     return content;
   };
 
-  // Utility functions
   const getCategoryIcon = (category?: string) => {
     switch (category?.toLowerCase()) {
       case "sightseeing":
@@ -528,8 +511,10 @@ export default function Home() {
     }
   };
 
-  const formatCurrency = (amount?: number) =>
-    !amount ? "Free" : `₹${amount.toLocaleString()}`;
+  const formatCurrency = (amount?: number) => {
+    if (amount === undefined || amount === null) return "Free";
+    return `₹${amount.toLocaleString()}`;
+  };
 
   const getStarRating = (rating?: number) => {
     if (!rating) return "No rating";
@@ -564,15 +549,112 @@ export default function Home() {
     }
   };
 
+  const renderBudgetWarning = () => {
+    if (!itinerary?.budget_warning) return null;
+
+    const { level, message, suggestions } = itinerary.budget_warning;
+
+    const getWarningStyles = () => {
+      switch (level) {
+        case "critical":
+          return {
+            container: "bg-red-50 border-red-300",
+            icon: "🚨",
+            iconBg: "bg-red-100",
+            titleColor: "text-red-800",
+            messageColor: "text-red-700",
+            suggestionBg: "bg-red-100",
+            suggestionBorder: "border-red-200",
+          };
+        case "warning":
+          return {
+            container: "bg-yellow-50 border-yellow-300",
+            icon: "⚠️",
+            iconBg: "bg-yellow-100",
+            titleColor: "text-yellow-800",
+            messageColor: "text-yellow-700",
+            suggestionBg: "bg-yellow-100",
+            suggestionBorder: "border-yellow-200",
+          };
+        case "info":
+          return {
+            container: "bg-blue-50 border-blue-300",
+            icon: "ℹ️",
+            iconBg: "bg-blue-100",
+            titleColor: "text-blue-800",
+            messageColor: "text-blue-700",
+            suggestionBg: "bg-blue-100",
+            suggestionBorder: "border-blue-200",
+          };
+        default:
+          return {
+            container: "bg-gray-50 border-gray-300",
+            icon: "💡",
+            iconBg: "bg-gray-100",
+            titleColor: "text-gray-800",
+            messageColor: "text-gray-700",
+            suggestionBg: "bg-gray-100",
+            suggestionBorder: "border-gray-200",
+          };
+      }
+    };
+
+    const styles = getWarningStyles();
+
+    return (
+      <div
+        className={`border-2 rounded-xl p-6 mb-6 ${styles.container} shadow-md`}
+      >
+        <div className="flex items-start gap-4">
+          <div
+            className={`${styles.iconBg} rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0`}
+          >
+            <span className="text-2xl">{styles.icon}</span>
+          </div>
+          <div className="flex-1">
+            <h4 className={`font-bold text-lg mb-2 ${styles.titleColor}`}>
+              Budget{" "}
+              {level === "critical"
+                ? "Alert"
+                : level === "warning"
+                ? "Notice"
+                : "Information"}
+            </h4>
+            <p className={`${styles.messageColor} mb-4 font-medium`}>
+              {message}
+            </p>
+            {suggestions && suggestions.length > 0 && (
+              <div>
+                <h5
+                  className={`font-semibold text-sm mb-2 ${styles.titleColor}`}
+                >
+                  💡 Suggestions:
+                </h5>
+                <ul className="space-y-2">
+                  {suggestions.map((suggestion, index) => (
+                    <li
+                      key={index}
+                      className={`${styles.suggestionBg} ${styles.suggestionBorder} border rounded-lg p-3 text-sm ${styles.messageColor}`}
+                    >
+                      <span className="font-medium">•</span> {suggestion}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderActivityCard = (activity: Activity, index: number) => (
     <div
       key={index}
       className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border shadow-md mb-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
     >
-      {/* Left segment - grey background */}
       <div className="bg-gray-800 text-white p-4 sm:p-5 flex flex-col justify-between w-full sm:max-w-md">
         <div>
-          {/* Number + Title */}
           <div className="flex items-center gap-2 mb-2">
             <div className="inline-flex w-8 h-8 items-center justify-center bg-white text-black font-bold rounded-md text-sm sm:text-base">
               {index + 1}
@@ -587,15 +669,11 @@ export default function Home() {
               {activity.best_time}
             </span>
           )}
-          {/* Short description */}
         </div>
       </div>
 
-      {/* Right segment - white background */}
       <div className="bg-white flex-1 p-4 sm:p-5 flex flex-col justify-between">
-        {/* Top info row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 text-center mb-3 sm:mb-4">
-          {/* Cost */}
           <div>
             <div className="font-bold text-base sm:text-lg text-orange-500 flex items-center justify-center gap-1">
               {formatCurrency(activity.estimated_cost)}
@@ -603,7 +681,6 @@ export default function Home() {
             <div className="text-xs text-gray-500">Cost</div>
           </div>
 
-          {/* Duration */}
           {activity.duration_hours && (
             <div>
               <div className="font-bold text-base sm:text-lg text-gray-800 flex items-center justify-center gap-1">
@@ -614,7 +691,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Category */}
           {activity.category && (
             <div>
               <div className="font-bold text-base sm:text-lg capitalize text-gray-800 flex items-center justify-center gap-1">
@@ -626,7 +702,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Extra info row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-1 sm:gap-0">
           <p className="text-gray-900 text-xs sm:text-sm leading-relaxed line-clamp-2">
             {activity.description || "No description available."}
@@ -659,11 +734,6 @@ export default function Home() {
         </div>
       </div>
       <p className="text-gray-600 text-sm mb-2">📍 {hotel.address}</p>
-      {hotel.price_per_night && (
-        <div className="text-sm font-semibold text-green-600 mb-2">
-          {formatCurrency(hotel.price_per_night)}/night
-        </div>
-      )}
       <div className="flex gap-2">
         {hotel.place_id && (
           <button
@@ -699,29 +769,6 @@ export default function Home() {
       total: itinerary.total_estimated_cost || 0,
     };
 
-    // Calculate breakdown if not provided
-    if (!itinerary.cost_breakdown) {
-      itinerary.days.forEach((day) => {
-        day.activities.forEach((activity) => {
-          if (activity.category?.toLowerCase().includes("food")) {
-            breakdown.food += activity.estimated_cost || 0;
-          } else {
-            breakdown.activities += activity.estimated_cost || 0;
-          }
-        });
-      });
-
-      if (itinerary.hotels) {
-        itinerary.hotels.forEach((hotel) => {
-          breakdown.accommodation +=
-            (hotel.price_per_night || 100) * itinerary.duration;
-        });
-      }
-
-      breakdown.transportation = itinerary.route_details?.estimated_cost || 0;
-      breakdown.miscellaneous = breakdown.total * 0.1;
-    }
-
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <h3 className="text-xl font-bold text-gray-800 mb-4">
@@ -753,7 +800,7 @@ export default function Home() {
             </span>
           </div>
           <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-gray-600 ">📦 Miscellaneous</span>
+            <span className="text-gray-600">📦 Miscellaneous</span>
             <span className="font-semibold text-gray-800">
               {formatCurrency(breakdown.miscellaneous)}
             </span>
@@ -820,7 +867,7 @@ export default function Home() {
   };
 
   const getTabCount = () => {
-    let count = 3; // Always have list, map, and share
+    let count = 2;
     if (itinerary?.hotels && itinerary.hotels.length > 0) count++;
     if (itinerary?.route_details) count++;
     return count;
@@ -845,8 +892,8 @@ export default function Home() {
     if (view === "route" && itinerary?.route_details) return `${position}%`;
     if (itinerary?.route_details) position += width;
 
-    if (view === "share") return `${position}%`;
-    position += width;
+    // if (view === "share") return `${position}%`;
+    // position += width;
 
     if (view === "map") return `${position}%`;
 
@@ -877,7 +924,6 @@ export default function Home() {
           }}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* From Location */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 From
@@ -908,7 +954,6 @@ export default function Home() {
                 />
               )}
             </div>
-            {/* To Location */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">To</label>
               {isLoaded ? (
@@ -937,7 +982,6 @@ export default function Home() {
                 />
               )}
             </div>
-            {/* Start Date */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Start Date
@@ -951,7 +995,6 @@ export default function Home() {
                 min={new Date().toISOString().split("T")[0]}
               />
             </div>
-            {/* Duration */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Duration (days)
@@ -962,19 +1005,11 @@ export default function Home() {
                 max="14"
                 value={durationInput}
                 onChange={(e) => setDurationInput(e.target.value)}
-                // onBlur={() => {
-                //   let val = Number(durationInput);
-                //   if (!val || val < 1) val = 1;
-                //   else if (val > 14) val = 14;
-                //   setDuration(val);
-                //   setDurationInput(val.toString());
-                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
             </div>
 
-            {/* Budget */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Budget (INR)
@@ -984,18 +1019,11 @@ export default function Home() {
                 min="1000"
                 value={budgetInput}
                 onChange={(e) => setBudgetInput(e.target.value)}
-                // onBlur={() => {
-                //   let val = Number(budgetInput);
-                //   if (!val || val < 1000) val = 1000;
-                //   setBudget(val);
-                //   setBudgetInput(val.toString());
-                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
             </div>
 
-            {/* Number of Travelers */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Number of Travelers
@@ -1006,19 +1034,11 @@ export default function Home() {
                 max="20"
                 value={travelerInput}
                 onChange={(e) => setTravelerInput(e.target.value)}
-                // onBlur={() => {
-                //   let val = Number(travelerInput);
-                //   if (!val || val < 1) val = 1;
-                //   else if (val > 20) val = 20;
-                //   setTravelerCount(val);
-                //   setTravelerInput(val.toString());
-                // }}
                 className="border rounded-xl px-3 py-3 w-full focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-500 transition"
                 disabled={loading}
               />
             </div>
 
-            {/* Preferred Transport */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Preferred Transport
@@ -1036,7 +1056,6 @@ export default function Home() {
                 <option value="motorcycle">Motorcycle</option>
               </select>
             </div>
-            {/* Themes - Multi-select */}
             <div className="flex flex-col w-full">
               <label className="mb-2 text-sm font-bold text-gray-700">
                 Theme(s) - Select one or more
@@ -1118,7 +1137,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* User Comments/Preferences */}
           <div className="mt-6">
             <label className="mb-2 text-sm font-bold text-gray-700 block">
               Additional Preferences & Comments
@@ -1149,11 +1167,9 @@ export default function Home() {
         </form>
       </div>
 
-      {/* Dynamic View Toggle */}
       {itinerary && (
         <div className="mb-8 w-full max-w-4xl mx-auto">
           <div className="flex items-center justify-center bg-white/80 backdrop-blur-md rounded-2xl shadow-lg relative overflow-hidden">
-            {/* Animated active highlight */}
             <div
               className="absolute h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl transition-all duration-300 shadow-md"
               style={{
@@ -1162,7 +1178,6 @@ export default function Home() {
               }}
             />
 
-            {/* Tab Buttons */}
             <div
               className={`grid w-full relative z-10`}
               style={{ gridTemplateColumns: `repeat(${getTabCount()}, 1fr)` }}
@@ -1205,17 +1220,6 @@ export default function Home() {
               )}
 
               <button
-                onClick={() => setView("share")}
-                className={`flex items-center justify-center gap-2 py-2 rounded-xl font-medium transition-all text-sm ${
-                  view === "share"
-                    ? "text-white"
-                    : "text-gray-600 hover:text-orange-600"
-                }`}
-              >
-                <span>Share & Book</span>
-              </button>
-
-              <button
                 onClick={() => setView("map")}
                 className={`flex items-center justify-center gap-2 py-2 rounded-xl font-medium transition-all text-sm ${
                   view === "map"
@@ -1230,7 +1234,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Loading State */}
       {loading && !bookingConfirmed && (
         <div className="text-center p-6 bg-white shadow-lg rounded-2xl max-w-md">
           <div className="animate-spin text-4xl mb-4">⏳</div>
@@ -1247,7 +1250,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Error State */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 w-full max-w-4xl">
           <div className="flex items-center gap-2 text-red-700">
@@ -1257,7 +1259,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Booking Confirmed State */}
       {bookingConfirmed && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6 w-full max-w-4xl">
           <div className="text-center">
@@ -1291,12 +1292,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* Itinerary Content */}
       {itinerary && !loading && (
         <div className="w-full max-w-6xl">
           {view === "list" ? (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              {/* Header with Trip Summary */}
               <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-orange-600 text-white p-6">
                 <h2 className="text-3xl font-bold mb-2">
                   Trip to {itinerary.to_location || itinerary.location}
@@ -1322,9 +1321,6 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {/* <span className="capitalize bg-orange-500/70 px-3 py-1 rounded-full text-xs">
-                    {itinerary.theme}
-                  </span> */}
                   {itinerary.preferred_transport && (
                     <span className="capitalize bg-orange-500/70 px-3 py-1 rounded-full text-xs">
                       {getTransportIcon(itinerary.preferred_transport)}{" "}
@@ -1349,12 +1345,14 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Cost Breakdown */}
+              <div className="p-6 border-b bg-gray-50">
+                {renderBudgetWarning()}
+              </div>
+
               <div className="p-6 border-b bg-gray-50">
                 {renderCostBreakdown()}
               </div>
 
-              {/* Day Tabs */}
               <div className="border-b bg-gray-50 px-6">
                 <div className="flex gap-1 overflow-x-auto py-4">
                   {itinerary.days.map((day) => (
@@ -1378,7 +1376,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Day Content */}
               <div className="p-6">
                 {itinerary.days
                   .filter((day) => day.day === activeDay)
@@ -1403,7 +1400,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* Weather Card */}
                       {day.weather && (
                         <div className="mb-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
                           <div className="flex items-center gap-3">
@@ -1433,7 +1429,6 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* Activities */}
                       <div className="space-y-4">
                         {day.activities.map((activity, index) =>
                           renderActivityCard(activity, index)
@@ -1450,7 +1445,6 @@ export default function Home() {
                   ))}
               </div>
 
-              {/* Navigation */}
               <div className="border-t bg-gray-50 p-4 flex justify-between">
                 <button
                   onClick={() => setActiveDay(Math.max(1, activeDay - 1))}
@@ -1510,141 +1504,6 @@ export default function Home() {
               </div>
               {renderRouteDetails()}
             </div>
-          ) : view === "share" ? (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-orange-600 text-white p-6">
-                <h3 className="text-2xl font-bold mb-2">
-                  Share & Book Your Trip
-                </h3>
-                <p className="opacity-90">
-                  Share your itinerary or book tickets with just a click
-                </p>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Sharing Section */}
-                <div className="bg-blue-50 rounded-xl p-6">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4">
-                    Share Your Itinerary
-                  </h4>
-                  <div className="flex gap-4 flex-wrap">
-                    <button
-                      onClick={generateShareableUrl}
-                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    >
-                      🔗 Generate Shareable Link
-                    </button>
-                    <button
-                      onClick={downloadItinerary}
-                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                    >
-                      📄 Download PDF
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (navigator.share) {
-                          navigator.share({
-                            title: `Trip to ${itinerary.to_location}`,
-                            text: `Check out my ${itinerary.duration}-day trip plan!`,
-                            url: window.location.href,
-                          });
-                        }
-                      }}
-                      className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                    >
-                      📱 Share
-                    </button>
-                  </div>
-                </div>
-
-                {/* Booking Section */}
-                <div className="bg-orange-50 rounded-xl p-6">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4">
-                    Book Your Trip
-                  </h4>
-                  <p className="text-gray-600 mb-4">
-                    Select the items you want to book and complete your purchase
-                    in just a few clicks.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h5 className="font-semibold text-gray-800 mb-3">
-                        Available for Booking:
-                      </h5>
-                      <div className="space-y-2">
-                        {bookingItems
-                          .filter((item) => item.bookable)
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between bg-white p-3 rounded-lg border"
-                            >
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={item.selected}
-                                  onChange={() =>
-                                    handleBookingItemToggle(
-                                      bookingItems.indexOf(item)
-                                    )
-                                  }
-                                  className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
-                                />
-                                <div>
-                                  <div className="font-medium text-gray-800">
-                                    {item.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500 capitalize">
-                                    {item.type}{" "}
-                                    {item.day ? `• Day ${item.day}` : ""}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="font-semibold text-orange-600">
-                                {formatCurrency(item.cost)}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border">
-                      <h5 className="font-semibold text-gray-800 mb-3">
-                        Booking Summary
-                      </h5>
-                      <div className="space-y-2 mb-4">
-                        {bookingItems
-                          .filter((item) => item.selected && item.bookable)
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between text-sm"
-                            >
-                              <span className="text-gray-600">{item.name}</span>
-                              <span className="text-gray-800">
-                                {formatCurrency(item.cost)}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                      <div className="border-t pt-3">
-                        <div className="flex justify-between font-bold text-lg">
-                          <span className="text-gray-800">Total:</span>
-                          <span className="text-orange-600">
-                            {formatCurrency(getTotalBookingCost())}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowBookingModal(true)}
-                        disabled={getTotalBookingCost() === 0}
-                        className="w-full mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 rounded-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Book Now - {formatCurrency(getTotalBookingCost())}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-orange-600 text-white p-4">
@@ -1654,7 +1513,6 @@ export default function Home() {
                 </p>
               </div>
               <MapView itinerary={itinerary} activeDay={activeDay} />
-              {/* Day selector for map */}
               <div className="p-4 border-t bg-gray-50">
                 <div className="flex gap-2 justify-center flex-wrap">
                   {itinerary.days.map((day) => (
@@ -1676,8 +1534,6 @@ export default function Home() {
           )}
         </div>
       )}
-
-      {/* Booking Modal */}
       {showBookingModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -1715,7 +1571,6 @@ export default function Home() {
                     Click "Proceed to Payment" to continue with booking
                     confirmation.
                   </p>
-                  {/* <p className="text-xs text-gray-500">This is a demo payment system. No actual charges will be made.</p> */}
                 </div>
               </div>
               <div className="flex gap-3">
@@ -1740,7 +1595,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -1755,7 +1609,6 @@ export default function Home() {
                 }}
               >
                 <div className="space-y-4">
-                  {/* Booking Summary */}
                   <div className="bg-gray-50 rounded-lg p-4 mb-6">
                     <h4 className="font-semibold text-gray-800 mb-2">
                       Order Summary
@@ -1780,7 +1633,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Contact Information */}
                   <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1820,7 +1672,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Payment Method */}
                   <div className="space-y-4">
                     <h4 className="font-semibold text-gray-800">
                       Payment Method
@@ -1867,7 +1718,7 @@ export default function Home() {
                                 cardholderName: e.target.value,
                               }))
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg  text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                             placeholder="John Doe"
                           />
                         </div>
@@ -1997,7 +1848,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full">
